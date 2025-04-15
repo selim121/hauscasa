@@ -67,7 +67,7 @@ export function PTPForm() {
         type="multiple"
         value={selected}
         onValueChange={setSelected}
-        className="grid grid-cols-4 gap-6"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
       >
         {actions.map((action) => (
           <ToggleGroupItem
@@ -80,13 +80,13 @@ export function PTPForm() {
         ))}
       </ToggleGroup>
 
-      <div className="mt-10 md:mt-20 xl:mt-[100px] flex flex-col lg:flex-row items-start justify-between gap-8 rounded-[12px] bg-gradient-to-b from-[#80CFEC3D] to-[#149FD23D] [background-image:linear-gradient(171deg,rgba(128,207,236,0.24)_-10.49%,rgba(20,159,210,0.24)_119.61%)] p-10">
+      <div className="mt-10 md:mt-20 xl:mt-[100px] flex flex-col lg:flex-row items-start justify-between gap-8 rounded-[12px] bg-gradient-to-b from-[#80CFEC3D] to-[#149FD23D] [background-image:linear-gradient(171deg,rgba(128,207,236,0.24)_-10.49%,rgba(20,159,210,0.24)_119.61%)] p-6 md:p-10">
         <h1 className="max-w-[350px] shrink-0 text-[24px] md:text-[32px] text-[#1D1F2C] font-semibold leading-[160%] border-b-[2px] border-b-[#3B82F6]">
           N244 Legal Template Generator
         </h1>
 
         <div className="w-full space-y-5">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="flex flex-col items-start gap-2">
               <label className="text-[16px] font-normal text-[#4A4C56]">
                 Applicant
