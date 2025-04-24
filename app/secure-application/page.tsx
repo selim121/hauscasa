@@ -1,12 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { QRCodeCanvas } from "qrcode.react";
 import { jsPDF } from "jspdf";
 import { toast } from "react-toastify";
+import { createSecureEntrySystems, deleteSecureEntrySystems, getSingleSecureEntrySystems } from "@/apis/SecureEntrySystemApi";
+import { Link, Loader2 } from "lucide-react";
+import logo from "@/public/Grouplogo.png";
+
+import { format } from "date-fns";
 
 export default function SecureApplication() {
   const [statement, setStatement] = useState("");
@@ -14,15 +18,15 @@ export default function SecureApplication() {
   const [referenceCode, setReferenceCode] = useState("");
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [tempResponse, setTempResponse] = useState<any | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Load saved submissions from localStorage
-    const savedSubmissions = JSON.parse(localStorage.getItem("submissions") || "[]");
-    setSubmissions(savedSubmissions);
     setIsLoading(false);
   }, []);
 
-  const generateAlias = () => {
+  const generateAlias = async () => {
     if (!statement.trim()) {
       toast.error("Please enter a statement or description.");
       return;
@@ -33,64 +37,213 @@ export default function SecureApplication() {
       return;
     }
 
-    const alias = "REF-" + Math.random().toString(36).substring(2, 9).toUpperCase();
-    setReferenceCode(alias);
+    setIsGenerating(true);
+    try {
+      const response = await createSecureEntrySystems(file, statement);
+      setReferenceCode(response.data.referenceCode);
+      setTempResponse(response);
+      toast.success("Reference code generated successfully!");
+    } catch (error) {
+      toast.error("Failed to generate reference code. Please try again.");
+      console.error(error);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!statement.trim() || !referenceCode) {
+
+    if (!statement.trim() || !referenceCode || !tempResponse) {
       toast.error("Please enter a statement and generate a reference code first.");
       return;
     }
 
-    setIsLoading(true);
-    
-    // Create submission object
-    const submission = {
-      id: Date.now(),
-      statement,
-      referenceCode,
-      fileName: file?.name || null,
-      timestamp: new Date().toLocaleString(),
-    };
+    setIsSubmitting(true);
+    try {
+      const response = await getSingleSecureEntrySystems(tempResponse.data.referenceCode);
 
-    // Save to localStorage
-    const updatedSubmissions = [...submissions, submission];
-    localStorage.setItem("submissions", JSON.stringify(updatedSubmissions));
-    setSubmissions(updatedSubmissions);
+      const newSubmission = {
+        id: Date.now(),
+        statement: response.data.descriptions,
+        referenceCode: response.data.referenceCode,
+        fileName: response.data.file,
+        timestamp: new Date(response.data.createdAt).toLocaleString(),
+        qrCodeURL: response.qrCodeDataURL
+      };
 
-    // Reset form
-    setStatement("");
-    setFile(null);
-    setReferenceCode("");
-    setIsLoading(false);
+      setSubmissions([...submissions, newSubmission]);
 
-    toast.success("Entry submitted successfully!");
-  };
+      setStatement("");
+      setFile(null);
+      setReferenceCode("");
+      setTempResponse(null);
 
-  const deleteEntry = (id: number) => {
-    const updatedSubmissions = submissions.filter((sub) => sub.id !== id);
-    localStorage.setItem("submissions", JSON.stringify(updatedSubmissions));
-    setSubmissions(updatedSubmissions);
-    toast.success("Entry deleted successfully!");
-  };
-
-  const downloadQR = () => {
-    if (!referenceCode) return;
-
-    const doc = new jsPDF();
-    const qrElement = document.getElementById("qrCanvas");
-    if (qrElement) {
-      const imgData = (qrElement as HTMLCanvasElement).toDataURL("image/png");
-      doc.addImage(imgData, "PNG", 20, 20, 160, 160);
-      doc.save(`${referenceCode}_QR.pdf`);
+      toast.success("Entry submitted successfully!");
+    } catch (error) {
+      toast.error("Failed to submit entry. Please try again.");
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
+  const deleteEntry = async (id: number, referenceCode: string) => {
+    try {
+      await deleteSecureEntrySystems(referenceCode);
+      const updatedSubmissions = submissions.filter((sub) => sub.id !== id);
+      setSubmissions(updatedSubmissions);
+      toast.success("Entry deleted successfully!");
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+      toast.error("Failed to delete entry. Please try again.");
+    }
+  };
+
+  const exportToPDF = async () => {
+    if (!tempResponse) return;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+
+    doc.addImage(logo.src, 'PNG', 20, 10, 25, 25);
+    doc.setFontSize(20);
+    doc.setTextColor(29, 31, 44);
+    doc.text('Secure Entry Document', pageWidth / 2, 45, { align: 'center' });
+
+    // Add QR Code - made smaller and adjusted position
+    const qrElement = document.getElementById("qrCanvas");
+    if (qrElement) {
+      const qrData = (qrElement as HTMLCanvasElement).toDataURL();
+      doc.addImage(qrData, 'PNG', pageWidth / 2 - 20, 55, 40, 40);
+    }
+
+    doc.setFontSize(11);
+    doc.setTextColor(74, 76, 86);
+
+    const contentStart = 110;
+    const lineHeight = 8;
+    let currentY = contentStart;
+
+    // Reference Code
+    doc.setFont(undefined, 'bold');
+    doc.text('Reference Code:', 20, currentY);
+    doc.setFont(undefined, 'normal');
+    doc.text(tempResponse.data.referenceCode, 85, currentY);
+    currentY += lineHeight * 1.5;
+
+    // Date
+    doc.setFont(undefined, 'bold');
+    doc.text('Date:', 20, currentY);
+    doc.setFont(undefined, 'normal');
+    doc.text(format(new Date(tempResponse.data.createdAt), 'PPpp'), 85, currentY);
+    currentY += lineHeight * 1.5;
+
+    // Description
+    doc.setFont(undefined, 'bold');
+    doc.text('Statement/Description:', 20, currentY);
+    doc.setFont(undefined, 'normal');
+    const descriptionLines = doc.splitTextToSize(tempResponse.data.descriptions, pageWidth - 40);
+    doc.text(descriptionLines, 20, currentY + lineHeight);
+    currentY += (descriptionLines.length + 1.5) * lineHeight;
+
+    // File Attachment
+    doc.setFont(undefined, 'bold');
+    doc.text('File Attachment:', 20, currentY);
+    doc.setFont(undefined, 'normal');
+
+    // Add file link with better styling
+    const attachmentName = tempResponse.data.file.split('/').pop() || 'attachment';
+    doc.setTextColor(59, 130, 246);
+    doc.setFont(undefined, 'normal');
+    doc.textWithLink(attachmentName, 20, currentY + lineHeight, {
+      url: tempResponse.data.file
+    });
+
+    // Add decorative line above footer
+    currentY = pageHeight - 25;
+    doc.setDrawColor(59, 130, 246);
+    doc.setLineWidth(0.5);
+    doc.line(20, currentY, pageWidth - 20, currentY);
+
+
+    doc.setFontSize(10);
+    doc.setTextColor(74, 76, 86);
+    doc.text('999plus - AI Crime Reporting for Corruption', pageWidth / 2, pageHeight - 15, {
+      align: 'center'
+    });
+
+    // Add subtle border to the page
+    doc.setDrawColor(230, 230, 230);
+    doc.setLineWidth(0.5);
+    doc.rect(10, 5, pageWidth - 20, pageHeight - 10);
+
+    // Save the PDF
+    const pdfFileName = `${tempResponse.data.referenceCode}_SecureEntry.pdf`;
+    doc.save(pdfFileName);
+  };
+
+  const downloadQR = () => {
+    if (!tempResponse) return;
+
+    //********* */ Get QR canvas element
+    const qrElement = document.getElementById("qrCanvas");
+    if (!qrElement) return;
+
+    // Create new PDF document
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    // Add title
+    doc.setFontSize(20);
+    doc.setTextColor(29, 31, 44);
+    doc.text('QR Code Document', pageWidth / 2, 45, { align: 'center' });
+
+
+    doc.addImage(logo.src, 'PNG', 20, 10, 25, 25);
+
+    // Add reference code
+    // doc.setFontSize(12);
+    // doc.setTextColor(74, 76, 86);
+    // doc.text(`Reference Code: ${tempResponse.data.referenceCode}`, pageWidth / 2, 60, { align: 'center' });
+
+    // Add QR Code (centered and larger)
+    const qrData = (qrElement as HTMLCanvasElement).toDataURL();
+    const qrSize = 70;
+    doc.addImage(
+      qrData,
+      'PNG',
+      (pageWidth - qrSize) / 2,
+      80,
+      qrSize,
+      qrSize
+    );
+
+    // Add decorative line above footer
+    doc.setDrawColor(59, 130, 246);
+    doc.setLineWidth(0.5);
+    doc.line(20, pageHeight - 25, pageWidth - 20, pageHeight - 25);
+
+    // Add footer
+    doc.setFontSize(10);
+    doc.setTextColor(74, 76, 86);
+    doc.text('999plus - AI Crime Reporting for Corruption', pageWidth / 2, pageHeight - 15, {
+      align: 'center'
+    });
+
+    // Add subtle border
+    doc.setDrawColor(230, 230, 230);
+    doc.setLineWidth(0.5);
+    doc.rect(10, 5, pageWidth - 20, pageHeight - 10);
+
+    // Save the PDF
+    doc.save(`${tempResponse.data.referenceCode}_QR.pdf`);
+  };
+
   return (
-    <div className="max-w-[846px] mx-auto mt-[85px] flex flex-col rounded-[12px] bg-gradient-to-b from-[#80CFEC3D] to-[#149FD23D] [background-image:linear-gradient(171deg,rgba(128,207,236,0.24)_-10.49%,rgba(20,159,210,0.24)_119.61%)] p-6 md:p-10">
+    <div className="max-w-[846px] mx-auto mt-10 flex flex-col rounded-[12px] bg-gradient-to-b from-[#80CFEC3D] to-[#149FD23D] [background-image:linear-gradient(171deg,rgba(128,207,236,0.24)_-10.49%,rgba(20,159,210,0.24)_119.61%)] p-6 md:p-10">
       <div className="max-w-[536px] mx-auto flex flex-col items-center justify-center gap-2 pb-[10px] border-b-[2px] border-b-[#3B82F6] mb-[38px]">
         <h1 className="shrink-0 text-center text-[24px] md:text-[32px] text-[#1D1F2C] font-semibold leading-[160%]">
           Secure Entry System
@@ -136,19 +289,35 @@ export default function SecureApplication() {
           </div>
         )}
 
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-4">
           <Button
             type="button"
             onClick={generateAlias}
+            disabled={isGenerating}
             className="flex-1 h-14 p-[14px] flex items-center justify-center gap-6 text-[20px] bg-[#3B82F6] cursor-pointer rounded-[10px] leading-[140%] text-[#FEF7F9] font-medium"
           >
-            Create Reference
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              'Create Reference'
+            )}
           </Button>
           <Button
             type="submit"
+            disabled={isSubmitting}
             className="flex-1 h-14 p-[14px] flex items-center justify-center gap-6 text-[20px] bg-[#3B82F6] cursor-pointer rounded-[10px] leading-[140%] text-[#FEF7F9] font-medium"
           >
-            Submit Entry
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              'Submit Entry'
+            )}
           </Button>
         </div>
 
@@ -164,13 +333,13 @@ export default function SecureApplication() {
         )}
 
         {referenceCode && (
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
             <Button
               type="button"
-              onClick={() => window.print()}
+              onClick={exportToPDF}
               className="flex-1 h-14 p-[14px] flex items-center justify-center gap-6 text-[20px] border border-[#3B82F6] cursor-pointer rounded-[10px] leading-[140%] text-[#3B82F6] font-medium"
             >
-              Export
+              Export Document
             </Button>
             <Button
               type="button"
@@ -194,18 +363,42 @@ export default function SecureApplication() {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-[#4A4C56]">{sub.timestamp}</span>
                 <button
-                  onClick={() => deleteEntry(sub.id)}
-                  className="text-red-500 hover:text-red-600 p-2 rounded-lg"
+                  onClick={() => deleteEntry(sub.id, sub.referenceCode)}
+                  className="text-red-500 cursor-pointer hover:text-red-600 p-2 rounded-lg"
                 >
                   Delete
                 </button>
               </div>
-              <p className="text-[#3B82F6] font-mono font-semibold mt-2">
-                {sub.referenceCode}
-              </p>
-              <p className="text-[#4A4C56] mt-2">{sub.statement}</p>
+
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-[#3B82F6] font-mono font-semibold mt-2">
+                    {sub.referenceCode}
+                  </p>
+                  <p className="text-[#4A4C56] mt-2">{sub.statement}</p>
+                </div>
+                {/* Add QR Code */}
+                <div className="flex justify-center my-3">
+                  <QRCodeCanvas
+                    value={sub.referenceCode}
+                    size={80}
+                    className="rounded-lg"
+                  />
+                </div>
+              </div>
+
+
+
               {sub.fileName && (
-                <p className="text-xs text-[#4A4C56] mt-2">📎 {sub.fileName}</p>
+                <div className="flex items-center flex-wrap justify-between mt-2 gap-2">
+                  <p className="text-xs text-[#4A4C56] flex items-center gap-1"> <Link size={16} /> {sub.fileName}</p>
+                  <Button
+                    onClick={() => window.open(sub.fileName, '_blank')}
+                    className="px-4 py-1 text-xs bg-[#3B82F6] text-white rounded-md hover:bg-[#2563EB] transition-colors"
+                  >
+                    View File
+                  </Button>
+                </div>
               )}
             </div>
           ))}
