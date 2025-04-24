@@ -394,7 +394,7 @@ export default function SecureApplication() {
                   <p className="text-xs text-[#4A4C56] flex items-center gap-1"> <Link size={16} /> {sub.fileName}</p>
                   <Button
                     onClick={() => window.open(sub.fileName, '_blank')}
-                    className="px-4 py-1 text-xs bg-[#3B82F6] text-white rounded-md hover:bg-[#2563EB] transition-colors"
+                    className="px-4 py-1 cursor-pointer text-xs bg-[#3B82F6] text-white rounded-md hover:bg-[#2563EB] transition-colors"
                   >
                     View File
                   </Button>

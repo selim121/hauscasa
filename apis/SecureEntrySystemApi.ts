@@ -43,9 +43,6 @@ export const getSingleSecureEntrySystems = async (referenceCode: string) => {
     }
 };
 
-
-
-
 //delete secure entry system
 export const deleteSecureEntrySystems = async (referenceCode: string) => {
     try {

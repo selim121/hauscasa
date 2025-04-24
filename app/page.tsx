@@ -3,19 +3,31 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import React, { useState } from "react";
+import { toast } from "react-toastify";
 
 export default function Home() {
+  const router = useRouter();
   const [alias, setAlias] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleAccess = () => {
+  const handleAccess = async () => {
     if (!alias.trim()) {
-      alert("Please enter an alias code");
+      toast.error("Please enter an alias code");
       return;
     }
-    // Here you can add your logic to handle the alias access
-    // For example, redirect to a specific page or make an API call
-    console.log("Accessing with alias:", alias);
+
+    setIsLoading(true);
+    try {
+      // Navigate to the alias dashboard with the reference code
+      router.push(`/alias-dashboard/${encodeURIComponent(alias)}`);
+    } catch (error) {
+      toast.error("Failed to access the reference code");
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -47,21 +59,22 @@ export default function Home() {
         <div className="flex flex-col gap-6 mt-12">
           <div className="flex flex-col items-start gap-2">
             <label className="text-[16px] font-normal text-[#4A4C56]">
-              Return with Alias *
+              Return with Reference Code *
             </label>
             <Input
               type="text"
               value={alias}
               onChange={(e) => setAlias(e.target.value)}
               className="h-14 bg-white placeholder:text-[#A5A5AB] placeholder:text-[16px] placeholder:font-normal placeholder:leading-[160%] text-center"
-              placeholder="Enter your alias ccde"
+              placeholder="Enter your reference code"
             />
           </div>
           <Button
             onClick={handleAccess}
-            className="w-full h-14 p-[14px] flex items-center justify-center gap-6 text-[20px] bg-[#3B82F6] cursor-pointer rounded-[10px] leading-[140%] text-[#FEF7F9] font-medium"
+            disabled={isLoading}
+            className="w-full h-14 p-[14px] flex items-center justify-center gap-6 text-[20px] bg-[#3B82F6] cursor-pointer rounded-[10px] leading-[140%] text-[#FEF7F9] font-medium disabled:opacity-50"
           >
-            Access
+            {isLoading ? "Accessing..." : "Access"}
           </Button>
         </div>
       </div>
