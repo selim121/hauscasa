@@ -130,7 +130,7 @@ function AliasDashboard() {
                     <ArrowLeft /> Back to Home
                 </Button>
 
-                <div className="bg-white border border-[#1D1F2C] rounded-lg shadow-md overflow-hidden">
+                <div className="bg-white border rounded-lg shadow-md overflow-hidden">
                     <div className="p-8">
                         <h1 className="text-2xl font-bold mb-6">Secure Entry Details</h1>
 
