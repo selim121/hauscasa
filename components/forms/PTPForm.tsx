@@ -67,13 +67,13 @@ export function PTPForm() {
         type="multiple"
         value={selected}
         onValueChange={setSelected}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+        className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-6"
       >
         {actions.map((action) => (
           <ToggleGroupItem
             key={action.value}
             value={action.value}
-            className="w-60 h-[52px] data-[state=on]:bg-[#3371FF] data-[state=on]:text-white data-[state=on]:border-[#3371FF] bg-white hover:bg-[#3371FF] border border-[#3371FF] rounded-md px-[42px] py-[15px] text-[16px] font-normal leading-[140%] text-[#4A4C56] hover:text-white focus:outline-none transition-all"
+            className="w-full sm:w-60 h-[52px] data-[state=on]:bg-[#3371FF] data-[state=on]:text-white data-[state=on]:border-[#3371FF] bg-white hover:bg-[#3371FF] border border-[#3371FF] rounded-md px-[42px] py-[15px] text-[16px] font-normal leading-[140%] text-[#4A4C56] hover:text-white focus:outline-none transition-all"
           >
             {action.label}
           </ToggleGroupItem>

@@ -42,7 +42,7 @@ export default function Home() {
             in.
           </p>
         </div>
-        <div className="w-full flex gap-6">
+        <div className="w-full flex flex-col sm:flex-row gap-6">
           <Link
             href="/form"
             className="w-full py-4 px-7 bg-[#1D1F2C] text-white rounded-[10px] text-[16px] font-semibold leading-[160%] text-center"

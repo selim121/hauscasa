@@ -18,7 +18,7 @@ export default function Form() {
 
       {/* public tri8gger panel */}
       <div className="max-w-[1062px] mx-auto py-10 md:py-20 xl:py-[100px]">
-        <div className="flex items-start justify-start pb-[10px] border-b-[2px] border-b-[#3B82F6]">
+        <div className="flex items-start justify-start pb-[10px] border-b-[2px] border-b-[#3B82F6] p-6">
           <h1 className="max-w-[410px] text-[24px] md:text-[32px] text-[#1D1F2C] font-semibold leading-[160%]">
             Public Trigger Panel
           </h1>
